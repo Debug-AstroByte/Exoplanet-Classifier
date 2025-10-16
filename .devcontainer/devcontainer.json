@@ -1,0 +1,17 @@
+// .devcontainer/devcontainer.json
+{
+    // Start with a clean Python 3.10 image (NO Colab baggage)
+    "image": "mcr.microsoft.com/devcontainers/python:3.10", 
+    "features": {
+        "ghcr.io/devcontainers/features/anaconda:1": {}
+    },
+    "postCreateCommand": "pip install jupyterlab numpy pandas matplotlib seaborn scikit-learn joblib astropy scipy lightkurve==2.4.1 tensorflow==2.13.1 --break-system-packages",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.python",
+                "ms-toolsai.jupyter"
+            ]
+        }
+    }
+}
