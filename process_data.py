@@ -83,7 +83,7 @@ def preprocess_light_curve(row, n_bins, max_len, use_mock=False):
 
         # 2. Stitch and clean
         lc = lc_collection.stitch().remove_nans()
-        lc_cl = lc.remove_outliers(sigma=7).flatten(window_length=101)
+        lc_cl = lc.remove_outliers(sigma=5).flatten(window_length=75)
         
         # 3. Fold the light curve
         lc_folded = lc_cl.fold(period=period, t0=epoch)
@@ -92,6 +92,8 @@ def preprocess_light_curve(row, n_bins, max_len, use_mock=False):
         x = lc_folded.phase.value
         y = lc_folded.flux.value
         y = y / np.median(y)
+        y = (y - np.mean(y)) / np.std(y)
+
         
         if len(x) < 20: 
             logger.warning(f"Insufficient data points ({len(x)}) after cleaning for KIC {kic_id}")
