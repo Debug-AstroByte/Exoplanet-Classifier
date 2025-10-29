@@ -1,13 +1,49 @@
-# Python cache
+# ----------------------------
+# Python build/cache files
+# ----------------------------
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 .venv/
 .env/
-
-# Large / generated files
-kepler_cache/
-*.pkl
-*.npz
-*.h5
-*.keras
+*.egg-info/
 *.log
+
+# ----------------------------
+# Jupyter / temporary files
+# ----------------------------
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# ----------------------------
+# Lightkurve / cache directories
+# ----------------------------
+kepler_cache/
+.cache/
+tmp/
+temp/
+
+# ----------------------------
+# Model and data files
+# ----------------------------
+# Ignore all large binaries by default
+*.h5
+*.npz
+*.npy
+*.csv
+
+#Allowing certain Files
+!kepler_koi_clean.csv
+!processed_data_output.pkl
+!cnn_kepler_200_v2.keras
+!best_cnn_kepler.keras
+!kepler_200_dataset.npz
+
+# ----------------------------
+# IDE / OS junk files
+# ----------------------------
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
