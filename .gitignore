@@ -1,0 +1,13 @@
+# Python cache
+__pycache__/
+*.pyc
+.venv/
+.env/
+
+# Large / generated files
+kepler_cache/
+*.pkl
+*.npz
+*.h5
+*.keras
+*.log
