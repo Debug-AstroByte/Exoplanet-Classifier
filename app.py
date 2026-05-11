@@ -14,7 +14,7 @@ from sklearn.metrics import (
 
 N_BINS = 400
 
-# ── Loaders ───────────────────────────────────────────────────────────────────
+# Loaders 
 
 @st.cache_resource
 def load_model():
@@ -47,7 +47,7 @@ def load_full_dataset():
     X_te, y_te = extract(test_df)
     return X_tr, y_tr, X_te, y_te
 
-# ── UI ────────────────────────────────────────────────────────────────────────
+# UI 
 
 st.title("Kepler Exoplanet Classifier")
 st.markdown(
@@ -93,10 +93,10 @@ if st.button("Load model & evaluate"):
     st.text(classification_report(y_test, preds,
                                    target_names=["False Positive", "Confirmed"]))
 
-    fpr, tpr, _  = roc_curve(y_test, probs)
+    fpr, tpr, _ = roc_curve(y_test, probs)
     prec, rec, _ = precision_recall_curve(y_test, probs)
-    roc_auc_val  = auc(fpr, tpr)
-    pr_auc_val   = auc(rec, prec)
+    roc_auc_val = auc(fpr, tpr)
+    pr_auc_val = auc(rec, prec)
 
     col1, col2 = st.columns(2)
     with col1:
