@@ -1,4 +1,4 @@
-# app.py – Streamlit demo
+# Streamlit demo
 import streamlit as st
 import numpy as np
 import joblib
@@ -11,7 +11,7 @@ from sklearn.metrics import (
     confusion_matrix, ConfusionMatrixDisplay, classification_report,
 )
 
-# ── Loaders ───────────────────────────────────────────────────────────────────
+# Loaders 
 
 @st.cache_resource
 def load_model():
@@ -32,7 +32,7 @@ def load_full_dataset():
     data = np.load("kepler_200_dataset.npz")
     return data["X_train"], data["y_train"], data["X_test"], data["y_test"]
 
-# ── UI ────────────────────────────────────────────────────────────────────────
+# UI 
 
 st.title("Kepler Exoplanet Classifier")
 st.markdown(
@@ -40,7 +40,7 @@ st.markdown(
     "or **False positive**. Model trained in `Exoplanet.ipynb`."
 )
 
-# Dataset overview
+# Dataset 
 with st.expander("Dataset overview", expanded=False):
     X_tr, y_tr, X_te, y_te = load_full_dataset()
     total = len(y_tr) + len(y_te)
@@ -69,15 +69,15 @@ if st.button("Load model & evaluate"):
         probs = model.predict(X_test, verbose=0).ravel()
         preds = (probs > 0.5).astype(int)
 
-    # Metrics text
+    # Metrics 
     st.text(classification_report(y_test, preds,
                                    target_names=["False Positive", "Confirmed"]))
 
     # ROC + PR
-    fpr, tpr, _  = roc_curve(y_test, probs)
+    fpr, tpr, _ = roc_curve(y_test, probs)
     prec, rec, _ = precision_recall_curve(y_test, probs)
-    roc_auc_val  = auc(fpr, tpr)
-    pr_auc_val   = auc(rec, prec)
+    roc_auc_val = auc(fpr, tpr)
+    pr_auc_val = auc(rec, prec)
 
     col1, col2 = st.columns(2)
     with col1:
@@ -100,12 +100,12 @@ if st.button("Load model & evaluate"):
     fig, ax = plt.subplots()
     ConfusionMatrixDisplay(
         confusion_matrix(y_test, preds),
-        display_labels=["False Positive", "Confirmed"],
+        display_labels = ["False Positive", "Confirmed"],
     ).plot(ax=ax, cmap="Blues")
     st.pyplot(fig)
     plt.close(fig)
 
-    # Top-6 most confident planet predictions
+    # Top-6 
     st.subheader("Top-6 confident planet predictions")
     for i in np.argsort(probs)[-6:][::-1]:
         fig, ax = plt.subplots(figsize=(8, 2))

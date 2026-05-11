@@ -1,10 +1,3 @@
-# process_data.py
-# =========================================================================
-#  DATA PROCESSING SCRIPT — fetches Kepler light curves and saves .npz
-#  Run: python process_data.py          (real fetch, needs MAST access)
-#       python process_data.py --mock   (mock data, no network needed)
-# =========================================================================
-
 import os
 import logging
 import argparse
@@ -20,20 +13,20 @@ from scipy import interpolate
 from astropy.utils.exceptions import AstropyWarning
 import lightkurve as lk
 
-# ── Config ────────────────────────────────────────────────────────────────────
+#  Config 
 N_SAMPLES_PER_CLASS = 1500
-N_BINS              = 400
-LOG_FILE_PATH       = './parallel_processing_script.log'
-CACHE_DIR           = './kepler_cache'
-OUTPUT_NPZ          = 'kepler_200_dataset.npz'   # primary output (used by notebook)
-OUTPUT_PKL          = 'processed_data_output.pkl' # secondary output (legacy / app.py fallback)
-TIMEOUT_SECONDS     = 300
-MAX_WORKERS         = 8
+N_BINS = 400
+LOG_FILE_PATH = './parallel_processing_script.log'
+CACHE_DIR = './kepler_cache'
+OUTPUT_NPZ = 'kepler_200_dataset.npz'   # primary output (used by notebook)
+OUTPUT_PKL = 'processed_data_output.pkl' # secondary output (legacy / app.py fallback)
+TIMEOUT_SECONDS = 300
+MAX_WORKERS = 8
 
 warnings.filterwarnings('ignore', category=AstropyWarning)
 os.environ['LIGHTKURVE_CACHE_DIR'] = CACHE_DIR
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# Helpers 
 
 def _reset_cache(cache_dir, logger):
     if os.path.exists(cache_dir):
@@ -50,7 +43,6 @@ def preprocess_light_curve(row, n_bins, use_mock=False):
     logger = logging.getLogger(__name__)
 
     disposition = row['koi_disposition']
-    # Only CONFIRMED = positive; CANDIDATE is ambiguous — skip entirely
     if disposition == 'CANDIDATE':
         return None, None
     label  = 1 if disposition == 'CONFIRMED' else 0
@@ -85,16 +77,16 @@ def preprocess_light_curve(row, n_bins, use_mock=False):
             logger.warning(f"Too few points ({len(x)}) for KIC {kic_id}")
             return None, None
 
-        # Normalise
+        # Normalising
         y = y / np.median(y)
         y = (y - y.mean()) / (y.std() + 1e-8)
 
-        # Interpolate to fixed-length grid
+        # fixed-length grid
         phase_bins  = np.linspace(-0.5, 0.5, n_bins)
         interp_func = interpolate.interp1d(x, y, kind='linear', fill_value='extrapolate')
         flux_binned = interp_func(phase_bins)
 
-        # Light smoothing
+        # Smoothing
         flux_binned = convolve(flux_binned, np.ones(3) / 3.0, mode='same')
 
         return flux_binned.astype('float32'), label
@@ -104,14 +96,14 @@ def preprocess_light_curve(row, n_bins, use_mock=False):
         return None, None
 
 
-# ── Pipeline ──────────────────────────────────────────────────────────────────
+# Pipeline 
 
 def run_pipeline(df, n_bins, use_mock, logger):
     df_in  = df[['kepid', 'koi_period', 'koi_time0bk', 'koi_disposition']].reset_index(drop=True)
     X_list, y_list = [], []
 
     _reset_cache(CACHE_DIR, logger)
-    logger.info(f"Launching {MAX_WORKERS} workers for {len(df_in)} KOIs…")
+    logger.info("Starting processing")
 
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         futures = {
@@ -147,7 +139,7 @@ def run_pipeline(df, n_bins, use_mock, logger):
         X, y, test_size=0.2, stratify=y, random_state=42
     )
 
-    # Save .npz (used by notebook) and .pkl (legacy)
+    # Saving .npz (used by notebook) and .pkl (legacy)
     np.savez_compressed(OUTPUT_NPZ,
                         X_train=X_train, X_test=X_test,
                         y_train=y_train, y_test=y_test)
@@ -157,7 +149,7 @@ def run_pipeline(df, n_bins, use_mock, logger):
     logger.info(f"Saved {OUTPUT_PKL}  — full array {X.shape}")
 
 
-# ── Entry point ───────────────────────────────────────────────────────────────
+
 
 if __name__ == '__main__':
     logging.basicConfig(
@@ -184,7 +176,7 @@ if __name__ == '__main__':
         confirmed_df = full_df[full_df['koi_disposition'] == 'CONFIRMED']
         fp_df        = full_df[full_df['koi_disposition'] == 'FALSE POSITIVE']
 
-        # Use .sample() for both classes to avoid ordering bias
+        
         confirmed_sample = (
             confirmed_df
             .sample(n=min(N_SAMPLES_PER_CLASS, len(confirmed_df)), random_state=42)
