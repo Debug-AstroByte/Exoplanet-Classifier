@@ -72,17 +72,23 @@ Then open `http://localhost:8501` in your browser 🌐
 
 ---
 
-## 🔄 Regenerating the Dataset (optional)
+## 🔄 Parallel Data Pipeline
 
-`process_data.py` fetches raw light curves from NASA's MAST archive and rebuilds `kepler_200_dataset.npz`.  
-This requires an internet connection with access to `mast.stsci.edu`.
+`process_data.py` uses a `ThreadPoolExecutor` with 8 workers to fetch and process Kepler light curves in parallel from NASA's MAST archive. Each worker independently fetches, cleans, phase-folds, and bins a light curve into a 400-point array.
 
+### Verify parallel processing works (no network needed)
 ```bash
-python process_data.py           # real fetch (~hours)
-python process_data.py --mock    # synthetic data, instant, no network needed
+python process_data.py --mock
 ```
+This runs the full parallel pipeline with synthetic data — all 8 workers fire and progress is logged in real time. Output: `kepler_200_dataset.npz`.
 
-The pre-processed `.npz` in the repo is sufficient for training and inference without running this script.
+### Real data fetch (requires access to mast.stsci.edu)
+```bash
+python process_data.py
+```
+Fetches live Kepler light curves from NASA. Takes several hours for 3000 KOIs. Not required — the pre-built `.npz` in the repo is sufficient for training and inference.
+
+> **Note:** Restricted network environments (e.g. dev containers, firewalled cloud VMs) may block `mast.stsci.edu`. Use `--mock` to test the pipeline in those cases.
 
 ---
 
