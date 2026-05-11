@@ -1,49 +1,23 @@
-# ----------------------------
-# Python build/cache files
-# ----------------------------
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.venv/
-.env/
-*.egg-info/
-*.log
-
-# ----------------------------
-# Jupyter / temporary files
-# ----------------------------
-.ipynb_checkpoints/
-*.ipynb_checkpoints
-
-# ----------------------------
-# Lightkurve / cache directories
-# ----------------------------
+# Cache & logs
 kepler_cache/
-.cache/
-tmp/
-temp/
+__pycache__/
+*.log
+*.pyc
 
-# ----------------------------
-# Model and data files
-# ----------------------------
-# Ignore all large binaries by default
-*.h5
-*.npz
-*.npy
-*.csv
+# Large data files — use Git LFS or keep local
+processed_data_output.pkl
+test_split.pkl
 
-#Allowing certain Files
-!kepler_koi_clean.csv
-!processed_data_output.pkl
-!cnn_kepler_200_v2.keras
-!best_cnn_kepler.keras
-!kepler_200_dataset.npz
+# Jupyter checkpoints
+.ipynb_checkpoints/
 
-# ----------------------------
-# IDE / OS junk files
-# ----------------------------
-.DS_Store
-Thumbs.db
+# VS Code
 .vscode/
-.idea/
+
+# macOS
+.DS_Store
+
+# Python env
+.env
+venv/
+*.egg-info/
