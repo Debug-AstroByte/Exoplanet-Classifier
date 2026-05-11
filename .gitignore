@@ -21,3 +21,5 @@ test_split.pkl
 .env
 venv/
 *.egg-info/
+exoTrain.csv
+exoTest.csv
