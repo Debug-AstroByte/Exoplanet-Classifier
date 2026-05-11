@@ -18,8 +18,8 @@ N_SAMPLES_PER_CLASS = 1500
 N_BINS = 400
 LOG_FILE_PATH = './parallel_processing_script.log'
 CACHE_DIR = './kepler_cache'
-OUTPUT_NPZ = 'kepler_200_dataset.npz'   # primary output (used by notebook)
-OUTPUT_PKL = 'processed_data_output.pkl' # secondary output (legacy / app.py fallback)
+OUTPUT_NPZ = 'kepler_200_dataset.npz'   
+OUTPUT_PKL = 'processed_data_output.pkl' 
 TIMEOUT_SECONDS = 300
 MAX_WORKERS = 8
 
@@ -130,16 +130,16 @@ def run_pipeline(df, n_bins, use_mock, logger):
         logger.warning("No samples processed. Outputs not saved.")
         return
 
-    X = np.expand_dims(np.array(X_list, dtype='float32'), -1)  # (N, 400, 1)
+    X = np.expand_dims(np.array(X_list, dtype='float32'), -1)
     y = np.array(y_list, dtype='int64')
 
-    # Train / test split (consistent with notebook)
+    # Train / test split 
     from sklearn.model_selection import train_test_split
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, stratify=y, random_state=42
     )
 
-    # Saving .npz (used by notebook) and .pkl (legacy)
+    # Saving .npz and .pkl 
     np.savez_compressed(OUTPUT_NPZ,
                         X_train=X_train, X_test=X_test,
                         y_train=y_train, y_test=y_test)
