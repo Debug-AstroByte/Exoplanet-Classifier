@@ -1,141 +1,76 @@
-# 🪐 Kepler Exoplanet Classifier
-
-A deep learning–based web app that classifies **Kepler light curves** into _confirmed exoplanets_ or _false positives_.  
-Built with TensorFlow, Streamlit, and NASA's Kepler dataset.
+# Kepler Exoplanet Classifier
 
 [![Streamlit App](https://img.shields.io/badge/🚀-Open%20App-brightgreen?style=for-the-badge)](https://exoplanet-classifier-agdeywxg3ngr22rxabzrqu.streamlit.app/)
-[![Made with Python](https://img.shields.io/badge/Python-3.11-blue?style=for-the-badge&logo=python)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.11-blue?style=for-the-badge&logo=python)](https://www.python.org/)
 [![TensorFlow](https://img.shields.io/badge/TensorFlow-2.x-orange?style=for-the-badge&logo=tensorflow)](https://www.tensorflow.org/)
 
----
+I built this because I wanted to see if a neural network could do what astronomers spend hours doing — looking at a star's light curve and figuring out if something is actually orbiting it or if it's just noise.
 
-## 🌌 Overview
+The model takes a phase-folded Kepler light curve (400 bins) and outputs a yes/no: confirmed planet or false positive. It's a 1D CNN trained on ~3000 KOIs from NASA's dataset, and it hits around 0.94 AUC on the held-out test set.
 
-The **Kepler Exoplanet Classifier** uses a 1D Convolutional Neural Network (CNN) to identify whether a given Kepler light curve represents a **confirmed planet** or a **false positive**.  
-Trained on a cleaned, balanced subset of NASA's KOI (Kepler Object of Interest) table.
-
-Key features:
-- 🧠 1D CNN trained in TensorFlow / Keras on phase-folded light curves
-- 📦 Pre-processed dataset included (`kepler_200_dataset.npz`) — no data fetching needed
-- 🔒 Clean train/val/test split with no data leakage
-- 🌍 Interactive Streamlit dashboard for inference and evaluation
+There's also a Streamlit app where you can load the model and see how it performs — ROC curve, confusion matrix, and the top predictions visualised.
 
 ---
 
-## 🧩 Repository Structure
+## How to run it
 
-```
-Exoplanet-Classifier/
-├── app.py                     # Streamlit web app
-├── process_data.py            # Data pipeline (requires MAST network access)
-├── Exoplanet.ipynb            # Model training notebook
-├── kepler_200_dataset.npz     # Pre-processed dataset (train/test arrays)
-├── cnn_kepler_200_v2.keras    # Trained CNN model
-├── best_cnn_kepler.keras      # Best checkpoint saved during training
-├── kepler_koi_clean.csv       # Raw KOI table (needed only for process_data.py)
-├── requirements.txt
-├── requirements-mac.txt
-├── runtime.txt
-├── .gitignore
-└── README.md
-```
-
----
-
-## ⚡ Quickstart
-
-### 1️⃣ Clone the repository
 ```bash
 git clone https://github.com/Debug-AstroByte/Exoplanet-Classifier.git
 cd Exoplanet-Classifier
-```
-
-### 2️⃣ Set up your environment
-```bash
 python -m venv .venv
-source .venv/bin/activate       # Windows: .venv\Scripts\activate
+source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 3️⃣ Train the model
-Open and run `Exoplanet.ipynb` top to bottom.  
-This loads `kepler_200_dataset.npz`, trains the CNN, and saves:
-- `cnn_kepler_200_v2.keras` — final model
-- `best_cnn_kepler.keras` — best checkpoint
-- `test_split.pkl` — held-out test set for the app
+Open `Exoplanet.ipynb` and run it top to bottom. This trains the model and saves everything the app needs. Then:
 
-### 4️⃣ Launch the Streamlit app
 ```bash
 streamlit run app.py
 ```
-Then open `http://localhost:8501` in your browser 🌐
 
 ---
 
-## 🔄 Parallel Data Pipeline
+## The data pipeline
 
-`process_data.py` uses a `ThreadPoolExecutor` with 8 workers to fetch and process Kepler light curves in parallel from NASA's MAST archive. Each worker independently fetches, cleans, phase-folds, and bins a light curve into a 400-point array.
+`process_data.py` is what actually pulls light curves from NASA's MAST archive and processes them. It runs 8 parallel workers using `ThreadPoolExecutor` — each one fetches, cleans, folds, and bins a single light curve independently. For 3000 KOIs that's a lot of network calls, so parallelising it made a real difference.
 
-### Verify parallel processing works (no network needed)
+If you want to test the pipeline without fetching real data (MAST can be slow or blocked in some environments):
+
 ```bash
 python process_data.py --mock
 ```
-This runs the full parallel pipeline with synthetic data — all 8 workers fire and progress is logged in real time. Output: `kepler_200_dataset.npz`.
 
-### Real data fetch (requires access to mast.stsci.edu)
-```bash
-python process_data.py
+This runs the exact same parallel pipeline but with synthetic curves — you can see all 8 workers running in the logs. The pre-built dataset (`kepler_200_dataset.npz`) is already in the repo so you don't need to run this just to train the model.
+
+---
+
+## Files
+
 ```
-Fetches live Kepler light curves from NASA. Takes several hours for 3000 KOIs. Not required — the pre-built `.npz` in the repo is sufficient for training and inference.
-
-> **Note:** Restricted network environments (e.g. dev containers, firewalled cloud VMs) may block `mast.stsci.edu`. Use `--mock` to test the pipeline in those cases.
-
----
-
-## 📊 Model Architecture & Performance
-
-| Property | Value |
-|----------|-------|
-| Input | Phase-folded light curve, 400 bins |
-| Architecture | 1D CNN — Conv×4, BN, GAP, Dropout(0.5), Dense(1) |
-| Output | Binary (Confirmed / False Positive) |
-| Validation AUC | ~0.94 |
-| Labels | CONFIRMED = 1, FALSE POSITIVE = 0 (CANDIDATE excluded) |
+├── Exoplanet.ipynb           training notebook
+├── app.py                    Streamlit app
+├── process_data.py           data pipeline
+├── kepler_200_dataset.npz    preprocessed dataset
+├── cnn_kepler_200_v2.keras   trained model
+├── best_cnn_kepler.keras     best checkpoint from training
+├── kepler_koi_clean.csv      raw KOI table (only needed to rerun pipeline)
+└── requirements.txt
+```
 
 ---
 
-## 🛰️ Deployment
+## A note on labels
 
-Deployed live via **Streamlit Cloud**:  
-👉 [**Launch the App**](https://exoplanet-classifier-agdeywxg3ngr22rxabzrqu.streamlit.app/)
-
----
-
-## 🧠 Technologies
-
-| Tool | Purpose |
-|------|---------|
-| TensorFlow / Keras | CNN model |
-| Lightkurve | Kepler light curve fetching |
-| NumPy / Pandas | Data processing |
-| Streamlit | Web interface |
-| scikit-learn | Metrics, splitting, class weights |
+I only used CONFIRMED and FALSE POSITIVE labels. CANDIDATE KOIs are excluded — they haven't been verified either way, so including them as positives would just add noise to the training data.
 
 ---
 
-## 🌠 Acknowledgments
+## Live app
 
-- [NASA Exoplanet Archive](https://exoplanetarchive.ipac.caltech.edu/)
-- [Kepler Mission](https://www.nasa.gov/mission_pages/kepler/)
-- [Lightkurve](https://docs.lightkurve.org/)
+👉 [exoplanet-classifier-agdeywxg3ngr22rxabzrqu.streamlit.app](https://exoplanet-classifier-agdeywxg3ngr22rxabzrqu.streamlit.app/)
 
 ---
 
-## 🧑‍🚀 Author
+Built by [Debug-AstroByte](https://github.com/Debug-AstroByte)
 
-**Debug-AstroByte** — AI & Astronomy Enthusiast  
-📬 [GitHub Profile](https://github.com/Debug-AstroByte)
-
----
-
-> _"Somewhere, something incredible is waiting to be known." — Carl Sagan_
+> "Somewhere, something incredible is waiting to be known." — Carl Sagan
