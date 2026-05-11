@@ -3,6 +3,7 @@
 [![Streamlit App](https://img.shields.io/badge/🚀-Open%20App-brightgreen?style=for-the-badge)](https://exoplanet-classifier-agdeywxg3ngr22rxabzrqu.streamlit.app/)
 [![Python](https://img.shields.io/badge/Python-3.11-blue?style=for-the-badge&logo=python)](https://www.python.org/)
 [![TensorFlow](https://img.shields.io/badge/TensorFlow-2.x-orange?style=for-the-badge&logo=tensorflow)](https://www.tensorflow.org/)
+![App Demo](demo.gif)
 
 I built this because I wanted to see if a neural network could do what astronomers spend hours doing — looking at a star's light curve and figuring out if something is actually orbiting it or if it's just noise.
 
