@@ -16,7 +16,7 @@ It's a 1D convolutional neural network trained on phase-folded Kepler light curv
 
 The Kepler Space Telescope stared at ~150,000 stars for four years, recording their brightness every 30 minutes. When a planet crosses in front of its star, it blocks a tiny fraction of the light — sometimes as little as 0.01% for an Earth-sized planet — leaving a small periodic dip in the curve. That dip is the signal. Everything else is noise.
 
-The tricky part is that a planet might transit its star dozens of times over four years, with each transit buried in noise. Phase-folding solves this: if you know the orbital period, you can stack all the transits on top of each other and average them into a clean signal. The model takes that averaged, 400-bin representation as input rather than the raw time series.
+The tricky part is that a planet might transit its star dozens of times over four years, with each individual transit buried in noise. Phase-folding solves this: if you know the orbital period, you can stack all the transits on top of each other and average them into a clean signal. The model takes that averaged, 400-bin representation as input rather than the raw time series.
 
 ---
 
@@ -24,9 +24,9 @@ The tricky part is that a planet might transit its star dozens of times over fou
 
 Two sources are used:
 
-**Kaggle Kepler dataset** (`exoTrain.csv`, `exoTest.csv`) — pre-labelled time series from the Kaggle Exoplanet Hunter challenge. Each row is one star, each column one flux measurement, with 3,197 measurements per star. Labels: `2` = confirmed planet, `1` = false positive.
+**Kaggle Kepler dataset** exoTrain.csv, exoTest.csv — pre-labelled time series from the Kaggle Exoplanet Hunter challenge. Each row is one star, each column one flux measurement, with 3,197 measurements per star. Labels: `2` = confirmed planet, `1` = false positive.
 
-**NASA KOI table** (`kepler_koi_clean.csv`) — the Kepler Object of Interest catalogue from the NASA Exoplanet Archive, containing orbital parameters (period, transit epoch, duration) and dispositions for each candidate. Used by the data pipeline to phase-fold raw light curves.
+**NASA KOI table** kepler_koi_clean.csv — the Kepler Object of Interest catalogue from the NASA Exoplanet Archive, containing orbital parameters (period, transit epoch, duration) and dispositions for each candidate. Used by the data pipeline to phase-fold raw light curves.
 
 CANDIDATE-labelled stars are excluded from training. Their disposition is unresolved — using them as positive examples would introduce label noise, and the model would be trying to learn from examples where we don't actually know the answer.
 
@@ -34,7 +34,7 @@ CANDIDATE-labelled stars are excluded from training. Their disposition is unreso
 
 ## Data pipeline (`process_data.py`)
 
-For experiments using raw NASA photometry rather than the Kaggle pre-processed series, `process_data.py` fetches and processes light curves directly from the MAST archive via `lightkurve`. This is the slower, more involved path — fetching ~3,000 stars over the network takes a while — but it gives you control over every preprocessing step.
+For experiments using raw NASA photometry rather than the Kaggle pre-processed series, process_data.py fetches and processes light curves directly from the MAST archive via lightkurve. This is the slower, more involved path — fetching ~3,000 stars over the network takes a while — but it gives you control over every preprocessing step.
 
 For each star:
 
@@ -44,15 +44,15 @@ For each star:
 4. The light curve is phase-folded using the known orbital period and transit epoch from the KOI table, then binned to 400 uniformly spaced phase points from −0.5 to +0.5.
 5. Each folded curve is normalised by its median, and z-score standardised so all stars live on the same scale.
 
-Fetching is parallelised across 8 threads since the bottleneck is network latency, not CPU. Processed arrays are cached to `processed_data_output.pkl`, so you only pay that cost once.
+Fetching is parallelised across 8 threads since the bottleneck is network latency, not CPU. Processed arrays are cached to processed_data_output.pkl, so you only pay that cost once.
 
-`kepler_200_dataset.npz` is a leftover from an earlier version of the project when I was only working with 200 stars. It's no longer used.
+kepler_200_dataset.npz is a leftover from an earlier version of the project when I was only working with 200 stars. It's no longer used.
 
 ---
 
 ## Model
 
-The classifier is a 1D CNN (`cnn_kepler_200_v2.keras`) that takes a folded, binned light curve of shape `(400, 1)` as input.
+The classifier is a 1D CNN cnn_kepler_200_v2.keras that takes a folded, binned light curve of shape (400, 1) as input.
 
 A 1D CNN made sense here because a transit is a local shape — a dip spanning a contiguous run of phase bins — not a global or sequential pattern. The convolutional filters learn to detect the ingress slope, flat bottom, and egress of the transit profile regardless of small phase shifts, without being told explicitly what to look for.
 
@@ -62,9 +62,19 @@ One thing that mattered a lot in practice: class weights. Confirmed planets are 
 
 ## Evaluation
 
-Accuracy is a misleading metric here — if 90% of the dataset is false positives, a model that predicts "false positive" every time scores 90% while being completely useless. So the primary metric is ROC-AUC, which measures how well the model separates the two classes across all possible decision thresholds. The trained model achieves a validation ROC-AUC of **0.94**.
+The test set has 565 false positives and 5 confirmed planets, so the class imbalance is severe and the metrics need to be read carefully.
 
-The confusion matrix breaks down where the errors actually happen. The costly mistake is a false negative — a real planet the model misses. A false positive just means a follow-up observation that finds nothing; a false negative means that the star probably never gets a second look.
+| Metric | Value |
+|---|---|
+| ROC-AUC | 0.941 |
+| PR-AUC | 0.131 |
+| Confirmed planet recall | 0.60 |
+| Confirmed planet precision | 0.11 |
+| Macro F1 | 0.58 |
+
+ROC-AUC looks strong but is inflated by the large true negative pool — worth treating with scepticism on datasets this imbalanced. PR-AUC is the more meaningful number here: 0.131 against a random baseline of ~0.009.
+
+In practice, the model catches 60% of real planets but flags a lot of false alarms — precision of 0.11 means roughly 1 in 9 flagged candidates is actually a planet. For a first-pass screening tool that hands off to further observation, recall matters more than precision, but both numbers are worth knowing.
 
 ---
 
