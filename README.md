@@ -4,7 +4,7 @@
 
 I wanted to know if a neural network could do what astronomers spend hours doing — look at a star's brightness over time and figure out whether something is actually orbiting it. This is my attempt at that, built as a high schooler with no formal background in either ML or astrophysics.
 
-![Exoplanet](data/pic.jpg)
+![Exoplanet](pic.jpg)
 
 It's a 1D convolutional neural network trained on phase-folded Kepler light curves. It takes a star's brightness pattern as input and outputs a binary prediction: confirmed exoplanet or false positive. The hardest cases — and the ones the model still struggles with — are diluted eclipsing binaries, which produce dips in brightness that look almost identical to a real planetary transit. More on that in the limitations section.
 
