@@ -1,107 +1,103 @@
-# Kepler Exoplanet Classifier: Unveiling Hidden Worlds with AI
+# Kepler Exoplanet Classifier
 
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://exoplanet-classifier-agdeywxg3ngr22rxabzrqu.streamlit.app/)
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Debug-AstroByte/Exoplanet-Classifier/blob/main/Exoplanet.ipynb)
+A 1D convolutional neural network trained on phase-folded Kepler light curves to classify stars as hosting a confirmed exoplanet or a false positive. The central challenge is that the dominant false positive category — diluted eclipsing binaries — produces photometric signals nearly identical to a planetary transit, making single-passband brightness data alone an inherently limited input.
 
-**Discover exoplanets like never before.** Built by a high school student exploring the intersection of astronomy and machine learning, this project harnesses the power of a 1D Convolutional Neural Network (CNN) to **automatically detect exoplanets from NASA Kepler space telescope light curve data**, achieving an impressive **0.94 AUC** on unseen planetary candidates. It transforms raw starlight into scientific discovery, making the complex task of identifying distant worlds both accessible and intuitive.
+---
 
-Astronomers spend countless hours meticulously analysing subtle dips in stellar brightness – the tell-tale signs of an orbiting exoplanet. This AI-powered classifier streamlines that process, offering a robust and efficient method to distinguish genuine planetary transits from astrophysical noise. Whether you're a seasoned astrophysicist, a machine learning enthusiast, or simply captivated by the mysteries of the cosmos, this tool provides a unique window into the universe.
+## What this project does
 
-## Experience the AI Exoplanet Hunter
+The Kepler Space Telescope recorded the brightness of ~150,000 stars every 30 minutes for four years. When a planet crosses in front of its star from Kepler's line of sight, it blocks a small fraction of the starlight — as little as 0.01% for an Earth-sized planet — producing a periodic, U-shaped dip in the light curve. This project builds a classifier that takes those brightness recordings as input and predicts whether the dip is caused by a real planet or a false positive.
 
-Witness the classifier in action! Our interactive Streamlit web application allows you to explore real Kepler light curves, view model predictions, and analyse evaluation metrics instantly. See how AI unmasks hidden worlds in starlight:
+---
 
-[![Demo GIF](demo.gif)](https://exoplanet-classifier-agdeywxg3ngr22rxabzrqu.streamlit.app/)
+## Data
 
-**👉 [Launch the Live Streamlit App](https://exoplanet-classifier-agdeywxg3ngr22rxabzrqu.streamlit.app/)**
+Two sources are used:
 
-## Why This Project Matters
+**Kaggle Kepler dataset** (`exoTrain.csv`, `exoTest.csv`) — pre-labelled time series from the Kaggle Exoplanet Hunter challenge. Each row is one star, each column one flux measurement, with 3,197 measurements per star. Labels: `2` = confirmed planet, `1` = false positive.
 
-I built this because I wanted to see if a neural network could do what astronomers spend hours doing — looking at a star's light curve and figuring out if something is actually orbiting it or if it's just noise. This project is a testament to the power of machine learning in accelerating scientific discovery, offering a glimpse into the future of astronomical research. By leveraging deep learning, we can process vast amounts of data from missions like Kepler more efficiently, potentially uncovering new exoplanets that might otherwise go unnoticed.
+**NASA KOI table** (`kepler_koi_clean.csv`) — the full Kepler Object of Interest catalogue from the NASA Exoplanet Archive, containing orbital parameters (period, transit epoch, duration) and dispositions for each candidate system. Used by the data pipeline to phase-fold raw light curves.
 
-## How It Works
+CANDIDATE-labelled stars are excluded from training. Their disposition is unresolved — using them as positive examples would introduce label noise that degrades classifier performance.
 
-The core of this project is a 1D Convolutional Neural Network (CNN) trained on thousands of Kepler Objects of Interest (KOIs) from NASA's dataset. The model takes a phase-folded Kepler light curve (400 bins) as input and outputs a binary classification: either a **confirmed exoplanet** or a **false positive**.
+---
 
-### The Data Pipeline
+## Data pipeline (`process_data.py`)
 
-The `process_data.py` script is responsible for the entire data ingestion and preprocessing pipeline. It pulls light curves directly from NASA's MAST archive, cleans them, performs phase folding, and bins the data. To handle the large volume of network calls for ~3000 KOIs, the pipeline utilises 8 parallel workers via `ThreadPoolExecutor`, significantly speeding up data preparation. It also includes a `--mock` flag for testing with synthetic curves, ensuring robustness and accessibility even without live data access.
+For experiments using raw NASA photometry rather than the Kaggle pre-processed series, `process_data.py` fetches and processes light curves directly from the MAST archive via `lightkurve`.
 
-### Model Architecture
+For each star:
 
-Our 1D CNN is specifically designed for time-series classification, excelling at identifying subtle, recurring patterns characteristic of exoplanetary transits within the noise of stellar variability. The model achieves a robust 0.94 AUC, demonstrating its effectiveness in distinguishing true exoplanets.
+1. All available Kepler quarters are downloaded and stitched into a single continuous time series.
+2. Sigma-clipping removes outliers beyond 5 standard deviations (cosmic rays, momentum dumps).
+3. A 75-cadence median filter flattens long-term stellar variability and instrumental systematics, leaving only transit-timescale signals.
+4. The light curve is phase-folded using the known orbital period and transit epoch from the KOI table, then binned to 400 uniformly spaced phase points from −0.5 to +0.5. Binning reduces noise by averaging many observations per phase slot.
+5. Each folded curve is normalised by its median and then z-score standardised.
 
-## 🚀 Getting Started
+Fetching is parallelised across 8 threads (`ThreadPoolExecutor`) since the bottleneck is network latency, not CPU. Processed arrays are cached to `processed_data_output.pkl` via `joblib`.
 
-To run this project locally, follow these steps:
+`kepler_200_dataset.npz` is a legacy artefact from an earlier, smaller experiment. It is no longer used.
 
-1.  **Clone the repository:**
+---
 
-    ```bash
-    git clone https://github.com/Debug-AstroByte/Exoplanet-Classifier.git
-    cd Exoplanet-Classifier
-    ```
+## Model
 
-2.  **Set up a virtual environment and install dependencies:**
+The classifier is a 1D CNN (`cnn_kepler_200_v2.keras`) that takes a phase-folded, binned light curve of shape `(400, 1)` as input.
 
-    ```bash
-    python -m venv .venv
-    source .venv/bin/activate
-    pip install -r requirements.txt
-    ```
+A 1D CNN is appropriate here because the transit signal is a local shape — a dip spanning a contiguous window of phase bins — rather than a global or sequential pattern. Convolutional filters learn to detect the ingress, flat bottom, and egress of the transit profile regardless of minor phase shifts, without needing to be told what shape to look for.
 
-3.  **Prepare the dataset and train the model:**
+Class weights are applied during training to counteract the imbalance between confirmed planets (minority) and false positives (majority) in the Kaggle dataset. Without this correction, the model converges toward predicting the majority class and achieves high accuracy while missing nearly all real planets.
 
-    Open `Exoplanet.ipynb` and run all cells from top to bottom. This notebook handles data processing (if `kepler_koi_clean.csv` is present), model training, and saves the necessary model and test split files for the Streamlit app.
+---
 
-    **Alternatively, run in Google Colab for zero setup:**
+## Evaluation
 
-    **👉 [Open Exoplanet.ipynb in Google Colab](https://colab.research.google.com/github/Debug-AstroByte/Exoplanet-Classifier/blob/main/Exoplanet.ipynb)**
+The primary metric is **ROC-AUC** rather than accuracy. Because confirmed planets are rare, a classifier that predicts "false positive" for every star achieves high accuracy while being scientifically useless. ROC-AUC measures the probability that the model ranks a randomly chosen confirmed planet above a randomly chosen false positive, independent of the decision threshold. The trained model achieves a validation ROC-AUC of 0.94.
 
-4.  **Launch the Streamlit application:**
+The confusion matrix distinguishes between the two error types: false negatives (real planets classified as false positives) and false positives (non-planets flagged as planet candidates). False negatives are the more costly error — a missed planet candidate is unlikely to receive follow-up observation.
 
-    ```bash
-    streamlit run app.py
-    ```
+---
 
-## 📂 Project Structure
+## Limitations
+
+The model operates only on phase-folded photometric flux. It has no access to:
+
+- Radial velocity measurements, which directly reveal companion mass
+- Centroid shift analysis, which identifies off-target contamination from background eclipsing binaries
+- Odd/even eclipse depth comparison, which identifies secondary eclipses characteristic of stellar companions
+- Multi-band photometry, which can distinguish stellar from planetary radii
+
+As a result, diluted eclipsing binaries — the dominant false positive category in the KOI table — remain difficult cases. A background binary that is sufficiently faint relative to the target star produces a shallow, symmetric, periodic dip that is geometrically indistinguishable from a hot Jupiter transit at the photometric precision available. This is not a modelling failure; it reflects a fundamental information limit of single-passband transit photometry alone.
+
+Professional vetting pipelines (e.g., Robovetter, vespa) combine several of these additional diagnostics. Extending this classifier with centroid or secondary eclipse features would be a meaningful next step.
+
+---
+
+## Web app (`app.py`)
+
+A Streamlit app that loads the saved model and test data, runs inference, and displays the ROC curve, precision-recall curve, confusion matrix, and individual light curve predictions with their associated probabilities. Run with:
 
 ```
-. 
-├── Exoplanet.ipynb           # Jupyter notebook for data processing, model training, and evaluation
-├── app.py                    # Streamlit web application for inference and visualisation
-├── process_data.py           # Script for fetching, cleaning, phase-folding, and binning light curves
-├── kepler_200_dataset.npz    # Preprocessed dataset (features and labels) for quick model training
-├── cnn_kepler_200_v2.keras   # Trained 1D CNN model
-├── best_cnn_kepler.keras     # Best checkpoint from model training
-├── kepler_koi_clean.csv      # Raw KOI table (only needed if rerunning the full data pipeline)
-├── demo.gif                  # GIF showcasing the Streamlit app
-├── requirements.txt          # Python dependencies
-└── diagnostics/
-    ├── class_distribution.png  # Plot showing class distribution
-    ├── sample_lightcurves.png  # Sample light curve visualisations
-    └── summary.txt             # Summary of diagnostic information
+streamlit run app.py
 ```
 
-## Dataset
+---
 
-This project primarily utilises the Kepler labelled time-series dataset available on Kaggle [1]. The `exoTrain.csv` and `exoTest.csv` files, which form the basis of our training and testing, are derived from this source. Due to GitHub's file size limits, these raw CSVs are not included in the repository. To run the project locally with the full dataset, please download `exoTrain.csv` and `exoTest.csv` from the Kaggle link and place them in a `data/` folder within the repository root.
+## Requirements
 
-### A Note on Labels
+```
+tensorflow
+lightkurve
+scikit-learn
+streamlit
+joblib
+numpy
+pandas
+matplotlib
+```
 
-For training, I exclusively used `CONFIRMED` and `FALSE POSITIVE` labels. `CANDIDATE` KOIs were intentionally excluded, as their unverified status would introduce noise into the training data, potentially hindering the model's ability to accurately classify confirmed exoplanets.
+---
 
-## The Human Touch
+## Acknowledgements
 
-> "Somewhere, something incredible is waiting to be known." — Carl Sagan
-
-This project is a personal journey into the vastness of space and the power of artificial intelligence. It's an invitation to explore, learn, and contribute to our understanding of the universe. Your feedback, ideas, and contributions are highly welcome!
-
-## 🙏 Acknowledgments
-
-Special thanks to NASA and the Kepler mission for providing the invaluable data that made this project possible, and to the Kaggle community for curating accessible datasets.
-
-## References
-
-[1] Debug-AstroByte. (n.d.). *Exoplanet-Classifier*. GitHub. Retrieved from [https://github.com/Debug-AstroByte/Exoplanet-Classifier](https://github.com/Debug-AstroByte/Exoplanet-Classifier)
-[2] Shallue, C. J., & Vanderburg, A. (2018). Identifying Exoplanets with Deep Learning: A Five-planet Resonant Chain around Kepler-80 and an Eighth Planet around Kepler-90. *The Astronomical Journal*, 155(2), 94. Retrieved from [http://iopscience.iop.org/article/10.3847/1538-3881/aa9e09/meta](http://iopscience.iop.org/article/10.3847/1538-3881/aa9e09/meta)
+Light curve data from the NASA/IPAC Infrared Science Archive (MAST). KOI catalogue from the NASA Exoplanet Archive. Labelled dataset from the Kaggle Exoplanet Hunter challenge (W. Bharat).
