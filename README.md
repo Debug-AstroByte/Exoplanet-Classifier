@@ -26,7 +26,7 @@ The tricky part is that a planet might transit its star dozens of times over fou
 
 Two sources are used:
 
-**Kaggle Kepler dataset** exoTrain.csv, exoTest.csv — pre-labelled time series from the Kaggle Exoplanet Hunter challenge. Each row is one star, each column one flux measurement, with 3,197 measurements per star. Labels: `2` = confirmed planet, `1` = false positive.
+**Kaggle Kepler dataset** exoTrain.csv, exoTest.csv — pre-labelled time series from the Kaggle Exoplanet Hunter challenge. Each row is one star, each column one flux measurement, with 3,197 measurements per star. Labels: 2 = confirmed planet, 1 = false positive.
 
 **NASA KOI table** kepler_koi_clean.csv — the Kepler Object of Interest catalogue from the NASA Exoplanet Archive, containing orbital parameters (period, transit epoch, duration) and dispositions for each candidate. Used by the data pipeline to phase-fold raw light curves.
 
@@ -34,7 +34,7 @@ CANDIDATE-labelled stars are excluded from training. Their disposition is unreso
 
 ---
 
-## Data pipeline (`process_data.py`)
+## Data pipeline (process_data.py)
 
 For experiments using raw NASA photometry rather than the Kaggle pre-processed series, process_data.py fetches and processes light curves directly from the MAST archive via lightkurve. This is the slower, more involved path — fetching ~3,000 stars over the network takes a while — but it gives you control over every preprocessing step.
 
@@ -95,7 +95,7 @@ Professional vetting pipelines like Robovetter and vespa combine several of thes
 
 ---
 
-## Web app (`app.py`)
+## Web app (app.py)
 
 A Streamlit app that loads the saved model and test data, runs inference, and shows the ROC curve, precision-recall curve, confusion matrix, and individual light curve predictions with predicted probabilities.
 
@@ -115,7 +115,7 @@ source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-Download `exoTrain.csv` and `exoTest.csv` from the [Kaggle Exoplanet Hunter dataset](https://www.kaggle.com/datasets/keplersmachines/kepler-labelled-time-series-data) and place them in the repository root. Then open `Exoplanet.ipynb` and run all cells to train the model. Once complete:
+Download exoTrain.csv and exoTest.csv from the [Kaggle Exoplanet Hunter dataset](https://www.kaggle.com/datasets/keplersmachines/kepler-labelled-time-series-data) and place them in the repository root. Then open Exoplanet.ipynb and run all cells to train the model. Once complete:
 
 ```bash
 streamlit run app.py
