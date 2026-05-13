@@ -6,7 +6,7 @@ I wanted to know if a neural network could do what astronomers spend hours doing
 
 ![Exoplanet](pic.jpg)
 
-It's a 1D convolutional neural network trained on phase-folded Kepler light curves. It takes a star's brightness pattern as input and outputs a binary prediction: confirmed exoplanet or false positive. The hardest cases — and the ones the model still struggles with — are diluted eclipsing binaries, which produce dips in brightness that look almost identical to a real planetary transit. More on that in the limitations section.
+It's a 1D convolutional neural network trained on phase-folded Kepler light curves. It takes a star's brightness pattern as input and outputs a binary prediction: confirmed exoplanet or false positive. The hardest cases (and the ones the model still struggles with) are diluted eclipsing binaries, which produce dips in brightness that look almost identical to a real planetary transit. More on that in the limitations section.
 
 ![Demo](demo.gif)
 
@@ -16,7 +16,7 @@ It's a 1D convolutional neural network trained on phase-folded Kepler light curv
 
 ## How it works
 
-The Kepler Space Telescope stared at ~150,000 stars for four years, recording their brightness every 30 minutes. When a planet crosses in front of its star, it blocks a tiny fraction of the light — sometimes as little as 0.01% for an Earth-sized planet — leaving a small periodic dip in the curve. That dip is the signal. Everything else is noise.
+The Kepler Space Telescope stared at ~150,000 stars for four years, recording their brightness every 30 minutes. When a planet crosses in front of its star, it blocks a tiny fraction of the light (sometimes as little as 0.01% for an Earth-sized planet) leaving a small periodic dip in the curve. That dip is the signal. Everything else is noise.
 
 The tricky part is that a planet might transit its star dozens of times over four years, with each individual transit buried in noise. Phase-folding solves this: if you know the orbital period, you can stack all the transits on top of each other and average them into a clean signal. The model takes that averaged, 400-bin representation as input rather than the raw time series.
 
@@ -30,13 +30,13 @@ Two sources are used:
 
 **NASA KOI table** kepler_koi_clean.csv — the Kepler Object of Interest catalogue from the NASA Exoplanet Archive, containing orbital parameters (period, transit epoch, duration) and dispositions for each candidate. Used by the data pipeline to phase-fold raw light curves.
 
-CANDIDATE-labelled stars are excluded from training. Their disposition is unresolved — using them as positive examples would introduce label noise, and the model would be trying to learn from examples where we don't actually know the answer.
+CANDIDATE-labelled stars are excluded from training. Their disposition is unresolved (using them as positive examples would introduce label noise, and the model would be trying to learn from examples where we don't actually know the answer).
 
 ---
 
 ## Data pipeline (process_data.py)
 
-For experiments using raw NASA photometry rather than the Kaggle pre-processed series, process_data.py fetches and processes light curves directly from the MAST archive via lightkurve. This is the slower, more involved path — fetching ~3,000 stars over the network takes a while — but it gives you control over every preprocessing step.
+For experiments using raw NASA photometry rather than the Kaggle pre-processed series, process_data.py fetches and processes light curves directly from the MAST archive via lightkurve. This is the slower, more involved path (fetching ~3,000 stars over the network takes a while) but it gives you control over every preprocessing step.
 
 For each star:
 
@@ -54,11 +54,11 @@ kepler_200_dataset.npz is a leftover from an earlier version of the project when
 
 ## Model
 
-The classifier is a 1D CNN cnn_kepler_200_v2.keras that takes a folded, binned light curve of shape (400, 1) as input.
+The classifier is a 1D CNN (cnn_kepler_200_v2.keras) that takes a folded, binned light curve of shape (400, 1) as input.
 
 A 1D CNN made sense here because a transit is a local shape — a dip spanning a contiguous run of phase bins — not a global or sequential pattern. The convolutional filters learn to detect the ingress slope, flat bottom, and egress of the transit profile regardless of small phase shifts, without being told explicitly what to look for.
 
-One thing that mattered a lot in practice: class weights. Confirmed planets are the minority class in the Kaggle dataset, and without correcting for that, the model just learns to predict "false positive" for everything and gets a deceptively high accuracy. Class weights penalise minority-class mistakes more heavily during training, forcing the model to actually pay attention to the planets.
+One thing that mattered a lot in practice: class weights. Confirmed planets are the 'minority class' in the Kaggle dataset, and without correcting for that, the model just learns to predict "false positive" for everything and gets a deceptively high accuracy. Class weights penalise minority-class mistakes more heavily during training, forcing the model to actually pay attention to the planets.
 
 ---
 
@@ -76,7 +76,7 @@ The test set has 565 false positives and 5 confirmed planets, so the class imbal
 
 ROC-AUC looks strong but is inflated by the large true negative pool — worth treating with scepticism on datasets this imbalanced. PR-AUC is the more meaningful number here: 0.131 against a random baseline of ~0.009.
 
-In practice, the model catches 60% of real planets but flags a lot of false alarms — precision of 0.11 means roughly 1 in 9 flagged candidates is actually a planet. For a first-pass screening tool that hands off to further observation, recall matters more than precision, but both numbers are worth knowing.
+In practice, the model catches 60% of real planets but flags a lot of false alarms; precision of 0.11 means roughly 1 in 9 flagged candidates is actually a planet. For a first-pass screening tool that hands off to further observation, recall matters more than precision, but both numbers are worth knowing.
 
 ---
 
@@ -89,9 +89,9 @@ The model only sees phase-folded photometric flux. It has no access to:
 - Odd/even eclipse depth comparison, which flags secondary eclipses characteristic of a stellar companion
 - Multi-band photometry, which helps distinguish stellar from planetary radii
 
-This means diluted eclipsing binaries are genuinely hard. A background binary that's much fainter than the target produces a shallow, symmetric, periodic dip — geometrically nearly identical to a hot Jupiter transit at this photometric precision. The model gets fooled, and that's not really a fixable problem without additional data sources.
+This shows diluted eclipsing binaries are genuinely hard. A background binary that's much fainter than the target produces a shallow, symmetric, periodic dip — geometrically nearly identical to a hot Jupiter transit at this photometric precision. The model gets fooled, and that's not really a fixable problem without additional data sources.
 
-Professional vetting pipelines like Robovetter and vespa combine several of these diagnostics. Adding centroid or secondary eclipse features would be the most meaningful next step for this project.
+Professional vetting pipelines like Robovetter and vespa combine several of these diagnostics. I think adding centroid or secondary eclipse features would be the most meaningful next step for this project.
 
 ---
 
