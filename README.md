@@ -140,6 +140,17 @@ Or skip local setup entirely with the [Colab notebook](https://colab.research.go
 ```
 
 ---
+## Dataset
+
+This project uses the Kepler labelled time-series dataset available on Kaggle:
+
+[Kepler Labelled Time Series Data (Kaggle)](https://www.kaggle.com/datasets/keplersmachines/kepler-labelled-time-series-data?utm_source=chatgpt.com)
+
+The `exoTrain.csv` and `exoTest.csv` files used in this project were obtained from the dataset above.
+
+The files are not uploaded to this repository since they exceed GitHub's recommended file size limits. To run the project locally, download the dataset and place both CSV files inside the `data/` folder.
+
+---
 
 ## Requirements
 
